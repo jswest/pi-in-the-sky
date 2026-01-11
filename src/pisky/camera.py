@@ -34,6 +34,10 @@ class Camera:
 
     def open(self) -> bool:
         self.cap = cv2.VideoCapture(self.index)
+        if self.cap.isOpened():
+            # Request 1920x1080 resolution
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
         return self.cap.isOpened()
 
     def close(self) -> None:
@@ -53,10 +57,19 @@ class Camera:
         if frame is None:
             return None, []
 
-        # Crop to 1800x900 (centered)
         h, w = frame.shape[:2]
-        crop_w = TILE_SIZE * GRID_COLS
-        crop_h = TILE_SIZE * GRID_ROWS
+        crop_w = TILE_SIZE * GRID_COLS  # 1800
+        crop_h = TILE_SIZE * GRID_ROWS  # 900
+
+        # If frame is too small, resize it up
+        if w < crop_w or h < crop_h:
+            scale = max(crop_w / w, crop_h / h)
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            frame = cv2.resize(frame, (new_w, new_h))
+            h, w = frame.shape[:2]
+
+        # Crop to 1800x900 (centered)
         x_offset = (w - crop_w) // 2
         y_offset = (h - crop_h) // 2
         cropped = frame[y_offset : y_offset + crop_h, x_offset : x_offset + crop_w]
