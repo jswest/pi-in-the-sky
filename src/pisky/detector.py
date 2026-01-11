@@ -14,7 +14,8 @@ from numpy import ndarray  # noqa: E402
 try:
     from tflite_runtime.interpreter import Interpreter  # noqa: E402
 except ImportError:
-    from tensorflow.lite import Interpreter  # noqa: E402
+    import tensorflow as tf  # noqa: E402
+    Interpreter = tf.lite.Interpreter
 
 from pisky.paths import ensure_model_downloaded  # noqa: E402
 
