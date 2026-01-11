@@ -8,8 +8,13 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning, module="tensorflow")
 
 import numpy as np  # noqa: E402
-import tensorflow as tf  # noqa: E402
 from numpy import ndarray  # noqa: E402
+
+# Try tflite-runtime first (lighter, better ARM support), fall back to tensorflow
+try:
+    from tflite_runtime.interpreter import Interpreter  # noqa: E402
+except ImportError:
+    from tensorflow.lite import Interpreter  # noqa: E402
 
 from pisky.paths import ensure_model_downloaded  # noqa: E402
 
@@ -26,7 +31,7 @@ class BirdDetector:
     def __init__(self, model_path: Path | None = None) -> None:
         if model_path is None:
             model_path = ensure_model_downloaded()
-        self.interpreter = tf.lite.Interpreter(model_path=str(model_path))
+        self.interpreter = Interpreter(model_path=str(model_path))
         self.interpreter.allocate_tensors()
         self.input_details = self.interpreter.get_input_details()
         self.output_details = self.interpreter.get_output_details()
