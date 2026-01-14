@@ -12,6 +12,8 @@ dependencies = [
     "opencv-python>=4.5.0",
     "tflite-runtime>=2.14.0; sys_platform == 'linux'",
     "tensorflow>=2.14.0; sys_platform != 'linux'",
+    "fastapi>=0.128.0",
+    "uvicorn[standard]>=0.39.0",
 ]
 
 [project.scripts]

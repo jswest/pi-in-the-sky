@@ -52,8 +52,8 @@ def list_cmd() -> None:
 @cli.command("shoot")
 @click.option("--keep-all", is_flag=True, help="Keep all images even if no birds detected")
 @click.option("--camera", "camera_index", type=int, default=0, help="Camera index (default: 0)")
-def shoot_cmd(keep_all: bool, camera_index: int) -> None:
-    """Capture image and detect birds."""
+def shoot_cmd(keep_all: bool, camera_index: int) -> int | None:
+    """Capture image and detect birds. Returns photograph_id if saved."""
     images_dir = get_images_dir()
     images_dir.mkdir(parents=True, exist_ok=True)
 
@@ -66,30 +66,45 @@ def shoot_cmd(keep_all: bool, camera_index: int) -> None:
     with Camera(camera_index) as cam, Database() as db:
         image, tiles = cam.capture_tiles()
         if image is not None:
-            image_path = images_dir / f"{timestamp}.jpg"
+            image_filename = f"{timestamp}.jpg"
+            image_path = images_dir / image_filename
 
-            # Run detection on each tile
-            total_birds = 0
+            # Run detection on each tile, collect results
+            all_detections = []
             for i, tile in enumerate(tiles):
                 detections = detector.detect(tile)
                 if detections or keep_all:
                     tile_path = images_dir / f"{timestamp}_{i:02d}.jpg"
                     cv2.imwrite(str(tile_path), tile)
-                if detections:
-                    total_birds += len(detections)
-                    for det in detections:
-                        logger.info(f"Tile {i:02d}: bird detected (confidence: {det.confidence:.2f})")
-                        db.log_detection(now, i, det.confidence, str(image_path))
+                for det in detections:
+                    logger.info(f"Tile {i:02d}: bird detected (confidence: {det.confidence:.2f})")
+                    all_detections.append((i, det.confidence))
 
-            if total_birds > 0 or keep_all:
+            # Save image and log to database if we have detections or keep_all
+            if all_detections or keep_all:
                 cv2.imwrite(str(image_path), image)
-
-            if total_birds > 0:
-                logger.info(f"Saved {timestamp}.jpg with {total_birds} bird(s) detected")
+                photograph_id = db.log_photograph(now, image_filename, keep_all)
+                for tile_index, confidence in all_detections:
+                    db.log_detection(photograph_id, tile_index, confidence)
+                logger.info(f"Saved {image_filename} with {len(all_detections)} detection(s)")
+                return photograph_id
             else:
                 logger.info("No birds detected")
+                return None
         else:
             logger.error("Could not capture frame")
+            return None
+
+
+@cli.command("serve")
+@click.option("--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)")
+@click.option("--port", default=8000, type=int, help="Port to bind to (default: 8000)")
+def serve_cmd(host: str, port: int) -> None:
+    """Start the API server."""
+    from pisky.server import run_server
+
+    click.echo(f"Starting server at http://{host}:{port}")
+    run_server(host=host, port=port)
 
 
 def main() -> None:
