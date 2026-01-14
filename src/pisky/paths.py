@@ -20,7 +20,7 @@ def get_data_dir() -> Path:
     env_dir = os.environ.get("PISKY_DATA_DIR")
     if env_dir:
         return Path(env_dir)
-    return Path.home() / ".pisky"
+    return Path("/home") / "john" / ".pisky"
 
 
 def get_model_path() -> Path:

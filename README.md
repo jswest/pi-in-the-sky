@@ -85,6 +85,7 @@ Description=Pi in the Sky API
 After=network.target
 
 [Service]
+Environment=PISKY_DATA_DIR=/home/john/.pisky
 Type=simple
 User=john
 ExecStart=/home/john/.local/bin/pisky serve --host 127.0.0.1 --port 8000
@@ -105,10 +106,10 @@ After=network.target pisky-api.service
 [Service]
 Type=simple
 User=john
-WorkingDirectory=/home/john/pi-in-the-sky/client
+WorkingDirectory=/home/john/Code/pi-in-the-sky/client
 Environment=PORT=3000
 Environment=ORIGIN=http://pisky.local:3000
-ExecStart=/usr/bin/node build
+ExecStart=/home/john/.nvm/versions/node/v24.13.0/bin/node build
 Restart=on-failure
 RestartSec=5
 
@@ -150,7 +151,7 @@ sudo apt install nginx
 ```nginx
 server {
     listen 80;
-    server_name pisky.local;
+    server_name royal.local;
 
     location /api/ {
         proxy_pass http://127.0.0.1:8000;
@@ -178,4 +179,48 @@ sudo rm /etc/nginx/sites-enabled/default
 sudo systemctl restart nginx
 ```
 
-Access the dashboard at http://pisky.local (or your Pi's IP address).
+Access the dashboard at http://royal.local (or your Pi's IP address).
+
+### Scheduled captures
+
+To capture every 5 minutes, create a systemd timer:
+
+**/etc/systemd/system/pisky-shoot.service**
+
+```ini
+[Unit]
+Description=Pi in the Sky Capture
+
+[Service]
+Type=oneshot
+User=john
+Environment=HOME=/home/john
+ExecStart=/home/john/.local/bin/pisky shoot
+```
+
+**/etc/systemd/system/pisky-shoot.timer**
+
+```ini
+[Unit]
+Description=Run pisky shoot every 5 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now pisky-shoot.timer
+```
+
+Check timer status:
+
+```bash
+systemctl list-timers pisky-shoot.timer
+```

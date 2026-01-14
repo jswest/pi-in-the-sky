@@ -3,9 +3,25 @@
 	import { page } from '$app/state';
 	import { getPhotograph, formatDate, type PhotographDetail } from '$lib/api';
 
+	const GRID_COLS = 6;
+	const GRID_ROWS = 3;
+	const TOTAL_TILES = GRID_COLS * GRID_ROWS;
+
 	let photo: PhotographDetail | null = $state(null);
 	let loading = $state(true);
 	let error: string | null = $state(null);
+
+	function getBaseName(imagePath: string): string {
+		return imagePath.replace(/\.[^.]+$/, '');
+	}
+
+	function getTileUrl(baseName: string, index: number): string {
+		return `/images/${baseName}_${index.toString().padStart(2, '0')}.jpg`;
+	}
+
+	function getDetectionForTile(index: number): { confidence: number } | undefined {
+		return photo?.detections.find((d) => d.tile_index === index);
+	}
 
 	onMount(async () => {
 		const id = parseInt(page.params.id ?? '0');
@@ -32,24 +48,23 @@
 		<p class="error">{error}</p>
 	{:else if photo}
 		<h1>Photograph #{photo.photograph_id}</h1>
-		<p>{formatDate(photo.captured_at)}</p>
+		<p>{formatDate(photo.captured_at)} — {photo.detections.length} detection{photo.detections.length !== 1 ? 's' : ''}</p>
 
+		<h2>Full Image</h2>
 		<img src={photo.image_url} alt="Capture" class="main-image" />
 
-		<h2>Detections ({photo.detections.length})</h2>
-
-		{#if photo.detections.length === 0}
-			<p>No birds detected.</p>
-		{:else}
-			<div class="detections">
-				{#each photo.detections as detection}
-					<div class="detection">
-						<img src={detection.tile_url} alt="Tile {detection.tile_index}" />
-						<div>Tile {detection.tile_index} — {(detection.confidence * 100).toFixed(1)}%</div>
-					</div>
-				{/each}
-			</div>
-		{/if}
+		<h2>Tiles</h2>
+		<div class="tile-grid">
+			{#each Array(TOTAL_TILES) as _, i}
+				{@const detection = getDetectionForTile(i)}
+				<div class="tile" class:has-detection={detection}>
+					<img
+						src={getTileUrl(getBaseName(photo.image_url.replace('/images/', '')), i)}
+						alt="Tile {i}"
+					/>
+				</div>
+			{/each}
+		</div>
 	{/if}
 </main>
 
@@ -69,20 +84,37 @@
 		height: auto;
 	}
 
-	.detections {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 1rem;
+	.tile-grid {
+		display: grid;
+		grid-template-columns: repeat(6, 1fr);
+		gap: 0.5rem;
 	}
 
-	.detection {
+	.tile {
 		border: 1px solid #ccc;
-		padding: 0.5rem;
+		background: #eee;
+		min-height: 80px;
 	}
 
-	.detection img {
-		width: 150px;
-		height: 150px;
-		object-fit: cover;
+	.tile.has-detection {
+		border: 2px solid green;
+	}
+
+	.tile img {
+		width: 100%;
+		height: auto;
+		display: block;
+	}
+
+	.tile-label {
+		padding: 0.25rem;
+		font-size: 0.75rem;
+		display: flex;
+		justify-content: space-between;
+	}
+
+	.confidence {
+		color: green;
+		font-weight: bold;
 	}
 </style>
