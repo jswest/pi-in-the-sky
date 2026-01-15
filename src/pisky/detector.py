@@ -7,6 +7,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning, module="tensorflow")
 
+import cv2  # noqa: E402
 import numpy as np  # noqa: E402
 from numpy import ndarray  # noqa: E402
 
@@ -19,7 +20,7 @@ except ImportError:
 
 from pisky.paths import ensure_model_downloaded  # noqa: E402
 
-BIRD_CLASS_ID = 16
+BIRD_CLASS_ID = 14
 
 
 @dataclass
@@ -37,10 +38,11 @@ class BirdDetector:
         self.input_details = self.interpreter.get_input_details()
         self.output_details = self.interpreter.get_output_details()
 
-    def detect(self, image: ndarray, min_confidence: float = 0.5) -> list[Detection]:
-        """Detect birds in a 300x300 image. Returns list of detections."""
-        # Prepare input
-        input_data = np.expand_dims(image, axis=0).astype(np.uint8)
+    def detect(self, image: ndarray, min_confidence: float = 0.33) -> list[Detection]:
+        """Detect birds in a 300x300 BGR image. Returns list of detections."""
+        # Convert BGR (OpenCV) to RGB (model expects RGB)
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        input_data = np.expand_dims(image_rgb, axis=0).astype(np.uint8)
         self.interpreter.set_tensor(self.input_details[0]["index"], input_data)
 
         # Run inference
@@ -61,3 +63,15 @@ class BirdDetector:
                 ))
 
         return detections
+
+    def detect_all(self, image: ndarray, min_confidence: float = 0.5) -> list[tuple[int, float]]:
+        """Detect all objects (for debugging). Returns list of (class_id, confidence)."""
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        input_data = np.expand_dims(image_rgb, axis=0).astype(np.uint8)
+        self.interpreter.set_tensor(self.input_details[0]["index"], input_data)
+        self.interpreter.invoke()
+
+        classes = self.interpreter.get_tensor(self.output_details[1]["index"])[0]
+        scores = self.interpreter.get_tensor(self.output_details[2]["index"])[0]
+
+        return [(int(c), float(s)) for c, s in zip(classes, scores) if s >= min_confidence]

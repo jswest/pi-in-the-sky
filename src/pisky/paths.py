@@ -4,7 +4,10 @@ import zipfile
 from pathlib import Path
 from urllib.request import urlopen
 
+from dotenv import load_dotenv
 from loguru import logger
+
+load_dotenv()
 
 # Model source - SSD MobileNet V1 quantized, trained on COCO
 MODEL_URL = "https://storage.googleapis.com/download.tensorflow.org/models/tflite/coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip"
